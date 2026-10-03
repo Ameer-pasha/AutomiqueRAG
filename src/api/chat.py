@@ -1,16 +1,20 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from src.dependencies import get_service, get_tenant_id
 from src.schemas.chat import ChatRequest, ChatResponse, FeedbackRequest
 from src.services import RagService
+from src.providers.llm.openai_compat import LLMUnavailableError
 
 router = APIRouter(tags=["chat"])
 
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, tenant_id: str = Depends(get_tenant_id), service: RagService = Depends(get_service)):
-    response = await service.answer(request.query, tenant_id, request.document_ids)
+    try:
+        response = await service.answer(request.query, tenant_id, request.document_ids)
+    except LLMUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     if not request.stream:
         return response
     async def events():

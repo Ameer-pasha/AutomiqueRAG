@@ -38,6 +38,5 @@ async def delete_document(document_id: str, tenant_id: str = Depends(get_tenant_
     document = service.documents.get(document_id)
     if not document or document.tenant_id != tenant_id:
         raise HTTPException(status_code=404, detail="Document not found.")
-    service.store.delete_document(document_id, tenant_id)
-    service.documents.pop(document_id)
+    service.delete_document(document_id, tenant_id)
     Path(get_settings().upload_dir / tenant_id / f"{document_id}.pdf").unlink(missing_ok=True)

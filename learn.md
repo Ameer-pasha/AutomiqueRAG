@@ -4,18 +4,18 @@ Yeh project PDF upload karke uske content par question-answer karne wala RAG API
 
 ## Sabse pehle: current reality
 
-Database service `docker-compose.yml` mein declared hai, lekin application code abhi Postgres, Redis, ya Qdrant se connected nahi hai. Local mode ka state RAM mein hota hai:
+Database service `docker-compose.yml` mein declared hai, lekin application code abhi Postgres, Redis, ya Qdrant se connected nahi hai. Local mode mein built-in SQLite database `data/rag.db` use hota hai:
 
 | Cheez | Abhi kahan rehti hai | Server restart ke baad |
 | --- | --- | --- |
 | Original uploaded PDF | `data/files/<tenant-id>/<document-id>.pdf` | Rehti hai |
-| Document status | Python memory | Chala jata hai |
-| Chunks | Python memory | Chale jate hain |
-| Embeddings/index | Python memory | Chale jate hain |
+| Document status | SQLite `data/rag.db` | Rehta hai |
+| Chunks | SQLite `data/rag.db` | Rehte hain |
+| Embeddings/index | SQLite `data/rag.db` | Rehte hain |
 | Semantic cache | Python memory | Chala jata hai |
 | Feedback | Python memory | Chala jata hai |
 
-Isliye abhi local learning and development ke liye upload-to-answer ka full flow works. Production persistence ke liye `QdrantStore`, Postgres models/session, Redis semantic cache, aur durable worker adapters implement karne honge. Unki files already sahi boundaries mein bani hui hain: `src/providers/vectorstore/qdrant_store.py`, `src/db/`, `src/core/cache/`, aur `src/workers/`.
+Isliye upload, status, chunks, and local retrieval reload/restart ke baad bhi rehte hain. Production scale ke liye SQLite ko `QdrantStore` plus Postgres metadata, Redis semantic cache, aur durable worker se replace karna hoga. Unki boundaries already yahan hain: `src/providers/vectorstore/qdrant_store.py`, `src/db/`, `src/core/cache/`, aur `src/workers/`.
 
 ## Is project ka folder map
 
@@ -148,7 +148,7 @@ Search ke liye child chunk use hota hai. Answer banate waqt nearby parent contex
 
 ### 5. Embedding and index
 
-Current embedding `HashEmbeddingProvider` hai: `src/providers/embeddings/local.py`. Yeh deterministic local hash vector banata hai, so API bina model download/GPU/API key ke chalti hai. Yeh learning, API integration, tenant filters, and pipeline testing ke liye useful hai, but medical or high-quality semantic retrieval ke liye production model nahi hai.
+Default embedding `HashEmbeddingProvider` hai: `src/providers/embeddings/local.py`. Is project ki current `.env` Ollama ka `nomic-embed-text:latest` use karti hai through `src/providers/embeddings/ollama.py`, which gives substantially better semantic retrieval. Model change ke baad `POST /api/v1/admin/reindex/{document_id}` call karna zaroori hai, otherwise old vectors new query vectors se compatible nahi honge.
 
 Production replacement:
 
@@ -158,7 +158,7 @@ Production: BGE-M3 + Qdrant hybrid search
 Alternative: multilingual-e5 + OpenSearch
 ```
 
-Memory store `src/providers/vectorstore/memory_store.py` mein hai. Dense vectors RAM mein store hote hain. Isliye server restart ke baad PDFs disk par hote hue bhi unko re-index karna padega.
+Local store `src/providers/vectorstore/sqlite_store.py` mein hai. Dense vectors `data/rag.db` mein store hote hain, so server restart ke baad re-index zaroori nahi hota.
 
 ## Question kaise poochna hai
 
@@ -215,13 +215,13 @@ Yeh hallucination kam karne ka first guardrail hai. Medical use case mein thresh
 
 ### Answer generator
 
-Current default `LLMGateway` `src/providers/llm/gateway.py` mein hai. `LLM_BASE_URL` aur `LLM_MODEL` empty hain, to project extractive local answer banata hai: relevant context ki top sentences return karta hai. Isliye abhi internet, Ollama, or API key ke bina result milta hai.
+Current `LLMGateway` `src/providers/llm/gateway.py` mein hai. Current `.env` Ollama `llama3.2:latest` use karti hai. Local model ko responsive rakhne ke liye `LLM_CONTEXT_CHUNKS=3`, `LLM_MAX_TOKENS=350`, aur `LLM_TIMEOUT_SECONDS=120` configured hain. Ollama unavailable ho to API generic `500` ke bajaye clear `503` message return karti hai.
 
 Ollama/vLLM/OpenAI-compatible API connect karne ke liye `.env` mein example:
 
 ```dotenv
 LLM_BASE_URL=http://localhost:11434/v1
-LLM_MODEL=llama3.1
+LLM_MODEL=llama3.2:latest
 LLM_API_KEY=
 ```
 
@@ -250,7 +250,7 @@ Current delete endpoint:
 DELETE /api/v1/documents/{document_id}
 ```
 
-Header mein same `X-Tenant-ID` dena hai. Current code RAM se document and indexed chunks remove karta hai, aur original PDF `data/files/<tenant>/<id>.pdf` se bhi delete karta hai. Local state RAM-based hai, so cache restart par waise bhi clear hota hai. Production deletion design should be atomic:
+Header mein same `X-Tenant-ID` dena hai. Current code SQLite se document and indexed chunks remove karta hai, aur original PDF `data/files/<tenant>/<id>.pdf` se bhi delete karta hai. Semantic cache RAM-based hai, so cache restart par clear hota hai. Production deletion design should be atomic:
 
 ```text
 1. tenant authorization verify

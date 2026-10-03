@@ -14,14 +14,21 @@ class Settings(BaseSettings):
     chunk_overlap_words: int = 60
     retrieval_candidates: int = 30
     final_context_chunks: int = 6
+    llm_context_chunks: int = 3
+    llm_max_tokens: int = 350
+    llm_timeout_seconds: int = 120
     relevance_threshold: float = 0.12
     semantic_cache_threshold: float = 0.95
     llm_base_url: str | None = None
     llm_model: str | None = None
     llm_api_key: str | None = None
+    ollama_base_url: str = "http://127.0.0.1:11434"
+    embedding_provider: str = "hash"
+    embedding_model: str | None = None
     redis_url: str | None = None
     qdrant_url: str | None = None
     database_url: str | None = None
+    database_path: Path = Path("data/rag.db")
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     def ensure_directories(self) -> None:
