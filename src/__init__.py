@@ -1,0 +1,1 @@
+"""Automique RAG service."""
