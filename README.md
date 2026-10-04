@@ -2,6 +2,7 @@
 
 Provider-swappable PDF RAG service. The codebase follows a layered `src/` layout: HTTP routers, schemas, core RAG logic, providers, workers, evaluation, and documentation are isolated by responsibility.
 
+
 ## Run locally
 
 ```powershell
