@@ -100,7 +100,7 @@ PDF upload
   -> PDF signature and size validation
   -> data/files/<tenant>/<document-id>.pdf mein save
   -> background ingestion task
-  -> pypdf digital text extraction, page by page
+  -> Docling page-aware Markdown extraction; OCR only for image-only pages
   -> heading-aware parent-child chunks
   -> contextual header ke saath embedding
   -> local dense index mein chunks + vectors
@@ -123,19 +123,11 @@ data/files/ameer/7f3f...-document-id.pdf
 
 ### 3. PDF parsing
 
-Current parser `pypdf` hai: `src/core/ingestion/parser.py`. Yeh **digital PDFs** ke liye hai jisme text select/copy kiya ja sakta hai. Har page ka text separately extract hota hai, isliye citation mein original page number aata hai.
+`src/core/ingestion/parser.py` Docling ko primary parser ke roop mein use karta hai. Har original page alag Markdown text ke roop mein export hota hai, isliye table formatting aur page citation preserve rehte hain. Digital/text PDF mein OCR disabled rehta hai.
 
-Scanned/image-only PDF, handwritten prescription, complex table, chart, ya poor-quality scan ke liye current implementation `failed` status de sakta hai with `No selectable text found`. Next parser upgrade hoga:
+`src/core/ingestion/scanned.py` har page par `needs_ocr()` check karta hai. Jis page mein bahut kam text hota hai, uske liye Docling built-in OCR run hota hai aur sirf usi page ka OCR text use hota hai. Agar Docling unavailable ya conversion fail ho, normal digital PDF ke liye `pypdf` fallback hai. Scanned page ka OCR fail hone par document `failed` hoga aur `error` field mein affected page number aayega.
 
-```text
-Docling primary parser
-  -> OCR for scanned pages
-  -> VLM for difficult tables/charts/handwriting
-  -> normalized markdown with page + section metadata
-```
-
-Uska exact home `src/core/ingestion/parser.py` aur `src/core/ingestion/scanned.py` hai.
-
+Docling first install par OCR/layout models download kar sakta hai; scanned PDFs digital PDFs se noticeably slower ho sakte hain. Handwriting, charts, aur poor-quality scans OCR ke baad bhi usable text na dein to ingestion intentionally `failed` rahega. Extra system OCR setup is implementation mein required nahi hai because Docling built-in OCR is used.
 ### 4. Chunking
 
 `src/core/ingestion/chunker.py` page ke text ko default 380-word chunks mein todta hai. Adjacent chunks mein 60 words overlap rehte hain. Har chunk ke paas yeh metadata hota hai:
