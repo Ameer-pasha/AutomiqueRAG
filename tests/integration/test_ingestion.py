@@ -9,11 +9,11 @@ from src.services import RagService
 
 
 async def test_scanned_ingestion_keeps_original_page_for_citation(monkeypatch):
-    settings = Settings(relevance_threshold=0.0)
+    settings = Settings(relevance_threshold=0.0, parser_fast_path=False)
     embedder, store = HashEmbeddingProvider(64), MemoryHybridStore()
     service = RagService(settings, embedder, store, LLMGateway(None, None, None))
     document = service.create_document("scanned.pdf", "acme")
-    monkeypatch.setattr(pipeline, "extract_pages", lambda path: ["", "OCR says the dose is 75 mg daily."])
+    monkeypatch.setattr(pipeline, "extract_pages", lambda path, docling_device=None, mineru_device=None, **kwargs: ["", "OCR says the dose is 75 mg daily."])
 
     await pipeline.ingest_document(service, document.id, Path("tests/fixtures/scanned.pdf"))
 

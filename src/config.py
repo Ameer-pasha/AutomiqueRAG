@@ -29,6 +29,24 @@ class Settings(BaseSettings):
     qdrant_url: str | None = None
     database_url: str | None = None
     database_path: Path = Path("data/rag.db")
+    laya_enabled: bool = False
+    laya_model: str | None = None
+    laya_device: str | None = None
+    laya_max_context_chars: int = 2000
+    laya_relevance_threshold: float = 0.5
+    laya_faithfulness_threshold: float = 0.5
+    laya_citation_threshold: float = 0.5
+    laya_ocr_quality_threshold: float = 0.4
+    laya_rerank_top_n: int = 10
+    docling_device: str | None = None
+    mineru_device: str | None = None
+    parser_fast_path: bool = True
+    parser_fast_path_min_chars: int = 50
+    parser_fast_path_sample_pages: int = 3
+    mineru_formula_enable: bool = True
+    mineru_table_enable: bool = True
+    docling_images_scale: float = 1.0
+    parser_parallel_workers: int = 4
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     def ensure_directories(self) -> None:

@@ -6,11 +6,13 @@ from src.providers.embeddings.local import HashEmbeddingProvider
 from src.providers.embeddings.ollama import OllamaEmbeddingProvider
 from src.providers.llm.gateway import LLMGateway
 from src.providers.vectorstore.sqlite_store import SQLiteHybridStore
+from src.providers.decision.laya import LayaDecisionProvider
 from src.services import RagService
 
 _settings = get_settings()
 _embedder = OllamaEmbeddingProvider(_settings.ollama_base_url, _settings.embedding_model) if _settings.embedding_provider == "ollama" and _settings.embedding_model else HashEmbeddingProvider(_settings.embedding_dimension)
-_service = RagService(_settings, _embedder, SQLiteHybridStore(_settings.database_path), LLMGateway(_settings.llm_base_url, _settings.llm_model, _settings.llm_api_key, _settings.llm_max_tokens, _settings.llm_timeout_seconds), DocumentRepository(_settings.database_path))
+_decision_provider = LayaDecisionProvider(_settings.laya_model, _settings.laya_device, _settings.laya_max_context_chars) if _settings.laya_enabled else None
+_service = RagService(_settings, _embedder, SQLiteHybridStore(_settings.database_path), LLMGateway(_settings.llm_base_url, _settings.llm_model, _settings.llm_api_key, _settings.llm_max_tokens, _settings.llm_timeout_seconds), DocumentRepository(_settings.database_path), _decision_provider)
 
 
 def get_service() -> RagService:

@@ -10,7 +10,7 @@ def needs_ocr(page_text: str) -> bool:
     return len(page_text.strip()) < 20
 
 
-def extract_ocr_pages(path: Path) -> list[str]:
+def extract_ocr_pages(path: Path, device: str | None = None) -> list[str]:
     """Convert a PDF with Docling's built-in OCR and retain original page order."""
     try:
         from docling.datamodel.base_models import InputFormat
@@ -24,6 +24,8 @@ def extract_ocr_pages(path: Path) -> list[str]:
     try:
         options = PdfPipelineOptions()
         options.do_ocr = True
+        if device:
+            options.device = device
         converter = DocumentConverter(
             format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=options)}
         )
